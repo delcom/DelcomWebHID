@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Delcom WebHID API Example</title>
+  </head>
+  <body>
+    Delcom WebHID API Example  v0.2   3/10/2022<br/>
+    A simple example to control the <a href="https://www.delcomproducts.com" target="_blank" >Delcom</a> devices via <a href="https://wicg.github.io/webhid" target="_blank" >WebHID</a>.<br/>
+    Supported on browser: Chrome, Edge, Opera<br/>
+    <br/>
+    <table style="background-color:lightgrey; border-radius: 6px;" >
+        <tr><th align="left">Device Functions</th></tr>
+        <tr>
+            <td>
+            <input type="button" id="buttonOpen" value="Open"  onclick="openDevice();" > &nbsp;
+            <input type="button" id="buttonClose" value="Close" onclick="closeDevice();"> &nbsp;
+            </td>
+        </tr>
+        <tr><td>
+            <div id="info" style="color:navy">---</div>
+            </td>
+        </tr>
+    
+    </table>
+    <br/>
+    
+
+
+    <table style="background-color:lightgrey; border-radius: 6px;" >
+        <tr>
+            <th colspan="2">Port I/O Functions</th>
+            <td><input type="button" value="ReadPorts" onclick="readPorts();"></td>
+        </tr>
+        <tr>
+            <td>Port0</td>
+            <td><input id="P0" size="4em" value="255"></td>
+            <td><input type="button" value="Write P0" onclick="writePort0Byte(document.getElementById('P0').value);"></td>
+        </tr>
+        <tr>
+            <td>Port1</td>
+            <td><input id="P1" size="4em" value="255"></td>
+            <td><input type="button" value="Write P1" onclick="writePort1Byte(document.getElementById('P1').value);"></td>
+        </tr>
+    </table><br/>
+    
+
+    <table style="background-color:lightgrey; border-radius: 6px;" >
+        <tr><th colspan="5" align="left">LED Functions</th>
+            <td><input type="button" value="ALLOFF" onclick="allOff();" ></td>
+            <td></td>
+            <td><input type="button" value="testFlash" onclick="testFlash();" ></td>
+        <tr>
+            <td>LED #</td><td>Color</td><td>ON</td><td>OFF</td><td>BLINK</td><td>PWM</td><td>DUTY ON</td><td>DUTY OFF</td>
+        </tr>
+        <tr style="background-color: lightgreen;">
+            <td>LED 1</td>
+            <td>Green</td>
+            <td><input type="button" value="ON" onclick="setLED(0,1);" ></td>
+            <td><input type="button" value="BLINK" onclick="setLED(0,2);" ></td>
+            <td><input type="button" value="OFF" onclick="setLED(0,0);" ></td>
+            <td><input type="number" value="80" id="PWM1" min="0" max="100" onchange="setPWM(0,document.getElementById('PWM1').value);"></td>
+            <td><input type="number" value="128" id="DUTY1ON" min="0" max="255" onchange="setDuty(0,document.getElementById('DUTY1ON').value,document.getElementById('DUTY1OFF').value);"></td>
+            <td><input type="number" value="128" id="DUTY1OFF" min="0" max="255" onchange="setDuty(0,document.getElementById('DUTY1ON').value,document.getElementById('DUTY1OFF').value);"></td>
+        </tr>
+        <tr style="background-color: lightcoral;">
+            <td>LED 2</td>
+            <td>Red</td>
+            <td><input type="button" value="ON" onclick="setLED(1,1);" ></td>
+            <td><input type="button" value="BLINK" onclick="setLED(1,2);" ></td>
+            <td><input type="button" value="OFF" onclick="setLED(1,0);" ></td>
+            <td><input type="number" value="80" id="PWM2" min="0" max="100" onchange="setPWM(1,document.getElementById('PWM2').value);"></td>
+            <td><input type="number" value="128" id="DUTY2ON" min="0" max="255" onchange="setDuty(1,document.getElementById('DUTY2ON').value,document.getElementById('DUTY2OFF').value);"></td>
+            <td><input type="number" value="128" id="DUTY2OFF" min="0" max="255" onchange="setDuty(1,document.getElementById('DUTY2ON').value,document.getElementById('DUTY2OFF').value);"></td>
+        </tr>
+        <tr style="background-color: yellow;">
+            <td>LED 3</td>
+            <td>Yellow</td>
+            <td><input type="button" value="ON" onclick="setLED(2,1);" ></td>
+            <td><input type="button" value="BLINK" onclick="setLED(2,2);" ></td>
+            <td><input type="button" value="OFF" onclick="setLED(2,0);" ></td>
+            <td><input type="number" value="80" id="PWM3" min="0" max="100" onchange="setPWM(2,document.getElementById('PWM3').value);"></td>
+            <td><input type="number" value="128" id="DUTY3ON" min="0" max="255" onchange="setDuty(2,document.getElementById('DUTY3ON').value,document.getElementById('DUTY3OFF').value);"></td>
+            <td><input type="number" value="128" id="DUTY3OFF" min="0" max="255" onchange="setDuty(2,document.getElementById('DUTY3ON').value,document.getElementById('DUTY3OFF').value);"></td>
+        </tr>
+        
+        
+    </table>
+    
+    
+    <br/>
+    
+    
+    <br/>
+    <div id="status" style="color:green;"></div>
+    <!----------------------------------------------------------------------------------->
+
+    <script >
+        // WebHIDAPI    https://wicg.github.io/webhid/
+        // Delcom Samples & Info https://www.delcomproducts.com/productdetails.asp?PartNumber=900000
+        // Delcom General Cmds https://www.delcomproducts.com/downloads/USBIOHID.pdf
+        // Delcom Gen 3 Cmds   https://www.delcomproducts.com/downloads/USBIOG3MIG.pdf
+        // Delcom Beacon Cmds  https://www.delcomproducts.com/downloads/USBVIHID.pdf
+
+
+
+        var myDevice;       // device 
+
+        //--------------------------- Open/Close/Info Functions -------------------//
+        
+        // Opens the device, displays the product name, gets the device firmware version and displays it.
+        function openDevice(){
+            if(isDeviceOpen(0)) {
+                document.getElementById("status").innerText = "WARNING: Device alreay opened! Action cancelled."; 
+                return;
+            }
+            navigator.hid.requestDevice({ filters: [{ 
+                vendorId: 0x0fc5, productId: 0xb080, usagePage: 0xFF00, usage: 0x0000, }] })
+            .then(selectedDevice => {
+                myDevice = selectedDevice[0];
+                document.getElementById("info").innerText = myDevice.productName;      
+                
+                document.getElementById("status").innerText = "Device opened.";
+                return myDevice.open(); // Begin a session.
+            })
+            .then(()=> {
+                return(getDeviceInfo()); 
+            })
+            .then( ver => {
+                document.getElementById("info").innerText += " v"+ver;
+            })
+            
+            .then (()=> {readPorts()})
+        
+        ;}
+
+
+        // isDeviceOpen()
+        function isDeviceOpen(show)
+        {
+            if(myDevice == undefined) {
+                if(show) document.getElementById("status").innerText = "WARNING: Device not opened! Action cancelled."; 
+                return(0);
+            }
+            else {return(1);}
+        }
+
+        // Closes the Device
+        function closeDevice() {
+            if(isDeviceOpen(0)) {
+                myDevice.close(); 
+                myDevice = undefined;
+                document.getElementById("status").innerText = "Device closed.";
+                document.getElementById("info").innerText = "";
+            }
+        }
+
+       
+         // Get the device info
+         async function getDeviceInfo() {
+            if(!isDeviceOpen(1))return;
+
+            deviceFamily = 0;
+            deviceSN = 0;
+            deviceVersion = 0;
+            deviceDate = 0;
+            deviceMonth = 0;
+            deviceYear = 0;
+
+            const data = await myDevice.receiveFeatureReport(104);
+
+            deviceFamily = data.getUint8(0) + (data.getUint8(1)<<8);
+            deviceVersion = data.getUint8(4);
+            deviceDay = data.getUint8(5);
+            deviceMonth = data.getUint8(6);
+            deviceYear = 2000+data.getUint8(7);
+            deviceSN = data.getUint8(8) + (data.getUint8(9)<<8) + (data.getUint8(10)<<16)  + (data.getUint8(11)<<24);
+
+            if(1){
+                console.log("--- Device Information ---");
+                console.log("Family:  "+deviceFamily);
+                console.log("Version: "+deviceVersion);
+                console.log("Date:    "+deviceMonth+"/"+deviceDay+"/"+deviceYear);
+                console.log("SN:      "+deviceSN);
+            }
+
+
+
+            return(deviceVersion);
+        }
+
+
+        //--------------------------- Port IO Functions -------------------//
+        //function readPort0()  { return( readPorts().getUint8(0) ) }
+        //function readPort1()  { return( readPorts().getUint8(1) ) }
+
+        // read all ports
+        async function readPorts() {
+            if(!isDeviceOpen(1))return;
+            const data = await myDevice.receiveFeatureReport(100);
+            console.log("Port P0="+data.getUint8(0) +" P1="+data.getUint8(1));
+            document.getElementById('P0').value=data.getUint8(0);
+            document.getElementById('P1').value=data.getUint8(1);
+            return(data);
+        }
+
+        // write Port 0 bytewise
+        function writePort0Byte(value) {
+            if(!isDeviceOpen(1))return;
+            value = parseInt(value);
+            console.log("writePort0Byte("+value+")");
+            outputReportData = new Uint8Array([1, value, 0, 0, 0, 0, 0, 0 ]); 
+            myDevice.sendFeatureReport(101, outputReportData);
+        }
+
+        // write Port 1 bytewise
+        function writePort1Byte(value) {
+            if(!isDeviceOpen(1))return;
+            value = parseInt(value);
+            console.log("writePort1Byte("+value+")");
+            outputReportData = new Uint8Array([2,value, 0, 0, 0, 0, 0, 0 ]); 
+            myDevice.sendFeatureReport(101, outputReportData);
+        }
+
+         // write Port 0 bitwise
+        function writePort0Bit(reset, set) {
+            if(!isDeviceOpen(1))return;
+            outputReportData = new Uint8Array([11, reset, set, 0, 0, 0, 0, 0 ]); 
+            myDevice.sendFeatureReport(101, outputReportData);
+        }
+
+        // write Port 1 bitwise
+        function writePort1Bit(reset, set) {
+            if(!isDeviceOpen(1))return;
+            outputReportData = new Uint8Array([12, reset, set, 0, 0, 0, 0, 0 ]); 
+            myDevice.sendFeatureReport(101, outputReportData);
+        }
+
+
+        //--------------------------- LED Functions -------------------//
+
+        // setLED(num, mode) - num(0=Green, 1=Red, 3=Yellow), mode(0=off,1=On,2=blink)
+        function setLED( num, mode){
+            if(!isDeviceOpen(1))return;
+            
+            document.getElementById("status").innerText = "LED("+num+","+mode+")";
+
+            switch(parseInt(mode)) {
+                case 0: // LED OFF
+                        outputReportData = new Uint8Array([20, 1<<num, 0, 0, 0, 0, 0, 0 ]); // blink disabled
+                        myDevice.sendFeatureReport(101, outputReportData);
+                        outputReportData = new Uint8Array([12, 0, 1<<num, 0, 0, 0, 0, 0 ]);
+                        myDevice.sendFeatureReport(101, outputReportData);
+                        break;
+
+                case 1: // LED ON
+                        outputReportData = new Uint8Array([20, 1<<num, 0, 0, 0, 0, 0, 0 ]); // blink disabled
+                        myDevice.sendFeatureReport(101, outputReportData);
+                        outputReportData = new Uint8Array([12, 1<<num, 0, 0, 0, 0, 0, 0 ]);
+                        myDevice.sendFeatureReport(101, outputReportData);
+                        break;
+
+                case 2: // LED BLINK
+                        outputReportData = new Uint8Array([20, 0, 1<<num, 0, 0, 0, 0, 0 ]); // blink enabled
+                        myDevice.sendFeatureReport(101, outputReportData);
+                        outputReportData = new Uint8Array([12, 1<<num, 0, 0, 0, 0, 0, 0 ]);
+                        myDevice.sendFeatureReport(101, outputReportData);
+                        break;
+
+            }
+
+            
+        }
+
+        // Turns all LEDs Off
+        function allOff(){
+            // You should trun all LEDs off and disable blink mode before turn on other LEDs.
+            // Turning on all LEDs at full power can cause the voltage at the device to drop causing 
+            // the device to reset. This is espically ture with long USB cables (>=5meters).
+            // If you want to turn all LEDS on you may need to lower the LED power.
+            if(!isDeviceOpen(1))return;
+            setLED(0,0); setLED(1,0); setLED(2,0);
+        }
+
+
+        // Sets the LED PWM value
+        function setPWM(num, pwm) {
+            if(!isDeviceOpen(1))return;
+            document.getElementById("status").innerText = "setPWM("+num+","+pwm+")";
+            outputReportData = new Uint8Array([34, num, pwm, 0, 0, 0, 0, 0 ]);
+            myDevice.sendFeatureReport(101, outputReportData);
+
+        }
+
+        // Sets the duty cycle of the LED blink
+        function setDuty(num, dutyOn,dutyOff) {
+            if(!isDeviceOpen(1))return;
+            if(num>3) { document.getElementById("status").innerText = "WARNING: Invalid num Range!"; return;}
+            document.getElementById("status").innerText = "setDuty("+num+","+dutyOn+","+dutyOff+")";
+            outputReportData = new Uint8Array([21+num, dutyOff, dutyOn, 0, 0, 0, 0, 0 ]);
+            myDevice.sendFeatureReport(101, outputReportData);
+
+        }
+
+
+       
+        // Set the LED sync delay
+        function setDelay(num, delay){
+            if(!isDeviceOpen(1))return;
+            if(num>3) { document.getElementById("status").innerText = "WARNING: Invalid num Range!"; return;}
+            outputReportData = new Uint8Array([26+num, delay, 0, 0, 0, 0, 0, 0 ]);
+            myDevice.sendFeatureReport(101, outputReportData);
+     
+        }
+
+        // Sync the LEDs
+        function syncLED() {
+            if(!isDeviceOpen(1))return;
+            //document.getElementById("status").innerText = "Sync";
+            outputReportData = new Uint8Array([25, 7, 0, 0, 0, 0, 0, 0 ]);
+            myDevice.sendFeatureReport(101, outputReportData);
+        }
+
+        // Flash all LED in sequence - Test pattern
+        async function testFlash(){
+            if(!isDeviceOpen(1))return;
+            await allOff();
+            await setDuty(0,40,160);  // LED 0 duty
+            await setDuty(1,40,160);  // LED 1 duty
+            await setDuty(2,40,160);  // LED 2 duty
+            await setDelay(0,0);      // LED 0 delay 0
+            await setDelay(1,60);     // LED 1 delay 20
+            await setDelay(2,120);     // LED 2 delay 40
+           
+            outputReportData = new Uint8Array([20, 0, 0x7, 0, 0, 0, 0, 0 ]); // blink enabled
+            await myDevice.sendFeatureReport(101, outputReportData);
+            syncLED();
+            
+           
+            
+            
+
+        }
+
+
+
+    </script>
+  </body>
+</html>
