@@ -30,7 +30,8 @@ A simple example to control the <a href="https://www.delcomproducts.com" target=
 
 
 ## Version History
-
+* 0.3
+    * Added Warnings
 * 0.2
     * Added port IO commands
 * 0.1
