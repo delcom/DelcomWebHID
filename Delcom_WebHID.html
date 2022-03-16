@@ -5,7 +5,7 @@
     <title>Delcom WebHID API Example</title>
   </head>
   <body>
-    Delcom WebHID API Example  v0.2   3/10/2022<br/>
+    Delcom WebHID API Example  v0.3   3/16/2022<br/>
     A simple example to control the <a href="https://www.delcomproducts.com" target="_blank" >Delcom</a> devices via <a href="https://wicg.github.io/webhid" target="_blank" >WebHID</a>.<br/>
     Supported on browser: Chrome, Edge, Opera<br/>
     <br/>
@@ -114,25 +114,33 @@
                 document.getElementById("status").innerText = "WARNING: Device alreay opened! Action cancelled."; 
                 return;
             }
-            navigator.hid.requestDevice({ filters: [{ 
-                vendorId: 0x0fc5, productId: 0xb080, usagePage: 0xFF00, usage: 0x0000, }] })
-            .then(selectedDevice => {
-                myDevice = selectedDevice[0];
-                document.getElementById("info").innerText = myDevice.productName;      
+            try{    
+                navigator.hid.requestDevice({ filters: [{ 
+                    vendorId: 0x0fc5, productId: 0xb080, usagePage: 0xFF00, usage: 0x0000, }] })
+                .then(selectedDevice => {
+                    myDevice = selectedDevice[0];
+                    if(myDevice == undefined) {
+                        document.getElementById("info").innerText = "Device Not Found";      
+                        document.getElementById("status").innerText = "WARNING: Device Not Found!";
+                        throw "exit";
+                        }
+                    else{
+                        document.getElementById("info").innerText = myDevice.productName;      
+                        document.getElementById("status").innerText = "Device opened.";
+                        return myDevice.open(); // Begin a session.
+                    }
+                })
+                .then(()=> {
+                    return(getDeviceInfo()); 
+                })
+                .then( ver => {
+                    document.getElementById("info").innerText += " v"+ver;
+                })
                 
-                document.getElementById("status").innerText = "Device opened.";
-                return myDevice.open(); // Begin a session.
-            })
-            .then(()=> {
-                return(getDeviceInfo()); 
-            })
-            .then( ver => {
-                document.getElementById("info").innerText += " v"+ver;
-            })
-            
-            .then (()=> {readPorts()})
-        
-        ;}
+                .then (()=> {readPorts()});
+            }
+            catch(err) {document.getElementById("status").innerText = "WARNING: WebHID not supported on this browers!";}
+            }
 
 
         // isDeviceOpen()
